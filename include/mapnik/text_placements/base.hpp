@@ -50,6 +50,7 @@ public:
      * considered invalid!
      */
     virtual bool next()=0;
+    virtual void reset() {}
     virtual ~text_placement_info() {}
 
     /** Properties actually used by placement finder and renderer. Values in

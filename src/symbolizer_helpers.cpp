@@ -340,6 +340,13 @@ bool text_symbolizer_helper<FaceManagerT, DetectorT>::next_placement()
 }
 
 template <typename FaceManagerT, typename DetectorT>
+void text_symbolizer_helper<FaceManagerT, DetectorT>::reset_placement()
+{
+    placement_->reset();
+    placement_valid_ = true;
+}
+
+template <typename FaceManagerT, typename DetectorT>
 placements_type const& text_symbolizer_helper<FaceManagerT, DetectorT>::placements() const
 {
     return finder_->get_results();
@@ -363,27 +370,75 @@ template <typename FaceManagerT, typename DetectorT>
 bool shield_symbolizer_helper<FaceManagerT, DetectorT>::next_point_placement()
 {
     position const& shield_pos = sym_.get_shield_displacement();
+    double label_x = point_itr_->first + shield_pos.first;
+    double label_y = point_itr_->second + shield_pos.second;
+    bool placement_retry = false;
+    bool allow_no_text = sym_.get_no_text();
+    if (placement_->properties.allow_overlap && allow_no_text) {
+        placement_retry = true;
+        placement_->properties.allow_overlap = false;
+        allow_no_text = false;
+    }
     while (!points_.empty())
     {
         if (point_itr_ == points_.end())
         {
             //Just processed the last point. Try next placement.
-            if (!next_placement()) return false; //No more placements
+            if (!next_placement()) {
+                if( allow_no_text/*sym_.get_no_text()*/ ) {
+                    if(text_.get_string_info().num_characters()>0 &&
+                        (placement_->properties.allow_overlap ||
+                            detector_.has_point_placement(marker_ext_, placement_->get_actual_minimum_distance()) ||
+                            (placement_->properties.avoid_edges && !detector_.extent().contains(marker_ext_)))) {
+                        string_info dummy_info;
+                        finder_.reset(new placement_finder<DetectorT>(*placement_,
+                                                          dummy_info,
+                                                          detector_, dims_));
+                        finder_->clear_placements();
+                        finder_->find_point_placement(label_x, label_y, angle_);
+                        detector_.insert(marker_ext_);
+                        finder_->update_detector();
+                        point_itr_ = points_.erase(point_itr_);
+                        return true;
+                    }
+                } else {
+                    if (placement_retry == true) {
+                        placement_retry = false;
+                        placement_->properties.allow_overlap = true;
+                        allow_no_text = true;
+
+                        reset_placement();
+                        point_itr_ = points_.begin();
+                        continue;
+                    }
+                }
+                return false; //No more placements
+            }
             //Start again from begin of list
             point_itr_ = points_.begin();
             continue; //Reexecute size check
         }
         position const& text_disp = placement_->properties.displacement;
-        double label_x = point_itr_->first + shield_pos.first;
-        double label_y = point_itr_->second + shield_pos.second;
+        //double label_x = point_itr_->first + shield_pos.first;
+        //double label_y = point_itr_->second + shield_pos.second;
 
         finder_->clear_placements();
         finder_->find_point_placement(label_x, label_y, angle_);
-        if (finder_->get_results().empty())
-        {
-            //No placement for this point. Keep it in points_ for next try.
-            point_itr_++;
-            continue;
+        if (!finder_->get_results().empty()) {
+            expression_ptr const& width_expr = sym_.get_width();
+            expression_ptr const& height_expr = sym_.get_height();
+            if ( width_expr && height_expr) {
+                double width = 0, height = 0;
+                width = boost::apply_visitor(evaluate<feature_impl,value_type>(feature_), *width_expr).to_double();
+                height = boost::apply_visitor(evaluate<feature_impl,value_type>(feature_), *height_expr).to_double();
+                fit_marker(width, height, 0);
+            }
+            if (sym_.get_fit_image()) {
+                box2d<double> text_extent = finder_->get_extents();
+                double fit_width = text_extent.width()/scale_factor_;
+                double fit_height = text_extent.height()/scale_factor_;
+                fit_marker(fit_width, fit_height, sym_.get_fit_padding());
+            }
         }
         //Found a label placement but not necessarily also a marker placement
         // check to see if image overlaps anything too, there is only ever 1 placement found for points and verticies
@@ -404,8 +459,17 @@ bool shield_symbolizer_helper<FaceManagerT, DetectorT>::next_point_placement()
             marker_y_ = label_y - 0.5 * marker_h_;
             marker_ext_.re_center(label_x, label_y);
         }
+        if(placement_->properties.avoid_edges && !detector_.extent().contains(marker_ext_)) {
+            point_itr_++;
+            continue;
+        }
+        if (finder_->get_results().empty())
+        {
+            point_itr_++;
+            continue;
+        }
 
-        if (placement_->properties.allow_overlap || detector_.has_placement(marker_ext_))
+        if (placement_->properties.allow_overlap || detector_.has_point_placement(marker_ext_, placement_->get_actual_minimum_distance()))
         {
             detector_.insert(marker_ext_);
             finder_->update_detector();
@@ -467,6 +531,37 @@ void shield_symbolizer_helper<FaceManagerT, DetectorT>::init_marker()
     image_transform_.transform(&px1,&py1);
     image_transform_.transform(&px2,&py2);
     image_transform_.transform(&px3,&py3);
+    marker_ext_.init(px0, py0, px1, py1);
+    marker_ext_.expand_to_include(px2, py2);
+    marker_ext_.expand_to_include(px3, py3);
+    marker_ext_ *= scale_factor_;
+}
+
+template <typename FaceManagerT, typename DetectorT>
+void shield_symbolizer_helper<FaceManagerT, DetectorT>::fit_marker(double fit_width, double fit_height, double fit_padding)
+{
+    fit_width += 2*fit_padding;
+    fit_height += 2*fit_padding;
+    double sx = fit_width /marker_w_;
+    double sy = fit_height/marker_h_;
+    image_transform_ *= agg::trans_affine_scaling(sx,sy);
+
+    //evaluate_transform(image_transform_, feature_, sym_.get_image_transform());
+    marker_w_ = (*marker_)->width();
+    marker_h_ = (*marker_)->height();
+    double px0 = - 0.5 * marker_w_;
+    double py0 = - 0.5 * marker_h_;
+    double px1 = 0.5 * marker_w_;
+    double py1 = 0.5 * marker_h_;
+    double px2 = px1;
+    double py2 = py0;
+    double px3 = px0;
+    double py3 = py1;
+    image_transform_.transform(&px0,&py0);
+    image_transform_.transform(&px1,&py1);
+    image_transform_.transform(&px2,&py2);
+    image_transform_.transform(&px3,&py3);
+    box2d<double> marker_ext2;
     marker_ext_.init(px0, py0, px1, py1);
     marker_ext_.expand_to_include(px2, py2);
     marker_ext_.expand_to_include(px3, py3);

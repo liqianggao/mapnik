@@ -58,6 +58,12 @@ marker_cache::marker_cache()
                "<svg width='100%' height='100%' version='1.1' xmlns='http://www.w3.org/2000/svg'>"
                "<path fill='#0000FF' stroke='black' stroke-width='.5' d='m 31.698405,7.5302648 -8.910967,-6.0263712 0.594993,4.8210971 -18.9822542,0 0,2.4105482 18.9822542,0 -0.594993,4.8210971 z'/>"
                "</svg>");
+    insert_svg("cross",
+               "<?xml version='1.0' standalone='no'?>"
+               "<svg width='100%' height='100%' version='1.1' xmlns='http://www.w3.org/2000/svg'>"
+               "<line y2='10' x2='5' y1='0' x1='5' stroke-width='.5' stroke='black' fill='#000000'/>"
+               "<line y2='5' x2='10' y1='5' x1='0' stroke-width='.5' stroke='black' fill='#000000'/>"
+               "</svg>");
 }
 
 marker_cache::~marker_cache() {}

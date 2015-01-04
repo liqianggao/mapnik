@@ -72,6 +72,7 @@ public:
     {
     }
     bool next();
+    void reset() { state = 0; position_state = 0;}
 protected:
     bool next_position_only();
     unsigned state;

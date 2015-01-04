@@ -1252,6 +1252,12 @@ void map_parser::parse_shield_symbolizer(rule & rule, xml_node const& sym)
         double shield_dy = sym.get_attr("shield-dy", 0.0);
         shield_symbol.set_shield_displacement(shield_dx,shield_dy);
 
+        optional<expression_ptr> width = sym.get_opt_attr<expression_ptr>("width");
+        if (width) shield_symbol.set_width(*width);
+
+        optional<expression_ptr> height = sym.get_opt_attr<expression_ptr>("height");
+        if (height) shield_symbol.set_height(*height);
+
         // opacity
         optional<float> opacity = sym.get_opt_attr<float>("opacity");
         if (opacity)
@@ -1274,6 +1280,21 @@ void map_parser::parse_shield_symbolizer(rule & rule, xml_node const& sym)
         if (unlock_image)
         {
             shield_symbol.set_unlock_image(* unlock_image);
+        }
+
+        // fit_image
+        optional<boolean> fit_image =
+            sym.get_opt_attr<boolean>("fit-image");
+        if (fit_image)
+        {
+            shield_symbol.set_fit_image(* fit_image);
+        }
+
+        optional<double> fit_padding =
+            sym.get_opt_attr<double>("fit-padding");
+        if (fit_padding)
+        {
+            shield_symbol.set_fit_padding(* fit_padding);
         }
 
         std::string file = sym.get_attr<std::string>("file");
@@ -1299,9 +1320,10 @@ void map_parser::parse_shield_symbolizer(rule & rule, xml_node const& sym)
             sym.get_opt_attr<boolean>("no-text");
         if (no_text)
         {
-            MAPNIK_LOG_ERROR(shield_symbolizer) << "'no-text' is deprecated and will be removed in Mapnik 3.x, to create a ShieldSymbolizer without text just provide an element like: \"<ShieldSymbolizer ... />' '</>\"";
+            /*MAPNIK_LOG_ERROR(shield_symbolizer) << "'no-text' is deprecated and will be removed in Mapnik 3.x, to create a ShieldSymbolizer without text just provide an element like: \"<ShieldSymbolizer ... />' '</>\"";
             if (*no_text)
-                shield_symbol.set_name(parse_expression("' '"));
+                shield_symbol.set_name(parse_expression("' '"));*/
+            shield_symbol.set_no_text(* no_text);
         }
 
         file = ensure_relative_to_xml(file);

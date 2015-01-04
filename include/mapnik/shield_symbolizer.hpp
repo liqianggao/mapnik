@@ -55,10 +55,25 @@ struct MAPNIK_DECL shield_symbolizer : public text_symbolizer,
     void set_unlock_image(bool unlock_image);
     void set_shield_displacement(double shield_dx, double shield_dy);
     position const& get_shield_displacement() const;
+    bool get_no_text() const;
+    void set_no_text(bool no_text);
+    bool get_fit_image() const;
+    void set_fit_image(bool fit_image);
+    double get_fit_padding() const;
+    void set_fit_padding(double fit_padding);
+    void set_width(expression_ptr const& width);
+    expression_ptr const& get_width() const;
+    void set_height(expression_ptr const& height);
+    expression_ptr const& get_height() const;
 
 private:
     bool unlock_image_;
     position shield_displacement_;
+    bool no_text_;
+    bool fit_image_;
+    double fit_padding_;
+    expression_ptr width_;
+    expression_ptr height_;
 };
 }
 

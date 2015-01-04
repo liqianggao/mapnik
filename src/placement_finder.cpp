@@ -529,9 +529,14 @@ void placement_finder<DetectorT>::find_point_placement(double label_x,
     }
 
     // since there was no early exit, add the character envelopes to the placements' envelopes
+    if(!c_envelopes.empty())
+        extents_ = c_envelopes.front();
+    else
+        extents_.init(0,0,0,0);
     while (!c_envelopes.empty())
     {
         envelopes_.push(c_envelopes.front());
+        extents_.expand_to_include(c_envelopes.front());
         c_envelopes.pop();
     }
 

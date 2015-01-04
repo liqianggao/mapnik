@@ -77,6 +77,7 @@ protected:
     bool next_line_placement();
     bool next_line_placement_clipped();
     bool next_placement();
+    void reset_placement();
     void initialize_geometries();
     void initialize_points();
 
@@ -158,6 +159,7 @@ protected:
     bool next_point_placement();
     bool next_line_placement();
     void init_marker();
+    void fit_marker(double fit_width, double fit_height, double fit_padding);
     shield_symbolizer const& sym_;
     box2d<double> marker_ext_;
     boost::optional<marker_ptr> marker_;
